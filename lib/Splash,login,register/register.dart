@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../main_page/discover.dart';
+import '../main_page/writer_profile.dart';
 
 const Color _ink = Color(0xFF102F36);
 const Color _gold = Color(0xFFC99A55);
@@ -71,7 +73,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showMessage('Please agree to the Terms of Service and Privacy Policy.');
       return;
     }
-    _showMessage('Registration is not connected yet.');
+    WriterProfileScreen.currentUser = WriterProfile(
+      name: _nameController.text.trim(),
+      isWriter:
+          _accountType == 'Writer' || _accountType == 'Writer and Publisher',
+    );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const DiscoverScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -176,6 +186,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     if (email.isEmpty) {
                                       return 'Please enter your email';
                                     }
+                                    if (!RegExp(r'^[A-Za-z]').hasMatch(email)) {
+                                      return 'Email must start with a letter';
+                                    }
                                     if (!email.contains('@') ||
                                         !email.contains('.')) {
                                       return 'Enter a valid email address';
@@ -187,7 +200,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 const _FieldLabel('Register as'),
                                 const SizedBox(height: 7),
                                 DropdownButtonFormField<String>(
-                                  value: _accountType,
+                                  initialValue: _accountType,
                                   isExpanded: true,
                                   icon: const Icon(
                                     Icons.keyboard_arrow_down,
