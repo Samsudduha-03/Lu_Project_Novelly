@@ -23,6 +23,9 @@ class BookDetail {
     this.description = '',
     this.externalRating,
     this.coverImagePath,
+    this.isbn,
+    this.publication,
+    this.goodreadsLink,
     required this.reviews,
   });
 
@@ -35,6 +38,9 @@ class BookDetail {
   final String description;
   final double? externalRating;
   final String? coverImagePath;
+  final String? isbn;
+  final String? publication;
+  final String? goodreadsLink;
   final List<BookReview> reviews;
 }
 
@@ -117,6 +123,12 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                         _buildSectionHeading('Book Description'),
                         const SizedBox(height: 13),
                         _buildDescription(),
+                        if (_bookInformation.isNotEmpty) ...[
+                          const SizedBox(height: 22),
+                          _buildSectionHeading('Book Information'),
+                          const SizedBox(height: 13),
+                          _buildBookInformation(),
+                        ],
                         if (widget.book.externalRating != null) ...[
                           const SizedBox(height: 17),
                           _buildExternalRating(),
@@ -352,6 +364,47 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             size: 29,
           ),
         ),
+      ],
+    );
+  }
+
+  List<MapEntry<String, String>> get _bookInformation => [
+    if (widget.book.publication?.trim().isNotEmpty ?? false)
+      MapEntry('Publication', widget.book.publication!.trim()),
+    if (widget.book.isbn?.trim().isNotEmpty ?? false)
+      MapEntry('ISBN', widget.book.isbn!.trim()),
+    if (widget.book.goodreadsLink?.trim().isNotEmpty ?? false)
+      MapEntry('Goodreads', widget.book.goodreadsLink!.trim()),
+  ];
+
+  Widget _buildBookInformation() {
+    return Column(
+      children: [
+        for (final entry in _bookInformation)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(
+                      color: _deepInk,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    entry.value,
+                    style: const TextStyle(color: Color(0xFF626568)),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

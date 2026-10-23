@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwnerPublisher(publisherId) {
+      return request.auth != null
+        && request.auth.uid == publisherId
+        && request.auth.token.publisher == true;
+    }
+
+    match /publishers/{publisherId}/books/{bookId} {
+      allow read, create, update, delete: if isOwnerPublisher(publisherId);
+    }
+
+    match /publishers/{publisherId}/authors/{authorId} {
+      allow read, create, update, delete: if isOwnerPublisher(publisherId);
+    }
+  }
+}

@@ -3,12 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../main_page/discover.dart';
 import '../main_page/writer_profile.dart';
+import '../publisher/publisher_profile.dart';
 
 const Color _ink = Color(0xFF102F36);
 const Color _gold = Color(0xFFC99A55);
 const Color _muted = Color(0xFF777873);
 const Color _line = Color(0xFFD4D0C6);
 const Color _paper = Color(0xFFF6F3EA);
+const Color _roleBorder = Color(0xFFE8CDA6);
 const List<String> _accountTypes = [
   'Writer',
   'Publisher',
@@ -36,6 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
   bool _acceptedTerms = true;
+  bool _roleOptionsVisible = false;
 
   @override
   void initState() {
@@ -75,9 +78,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     WriterProfileScreen.currentUser = WriterProfile(
       name: _nameController.text.trim(),
+      accountId: _emailController.text.trim().toLowerCase(),
       isWriter:
           _accountType == 'Writer' || _accountType == 'Writer and Publisher',
+      isPublisher:
+          _accountType == 'Publisher' || _accountType == 'Writer and Publisher',
+      isCoverArtist: _accountType == 'Cover Artist',
     );
+    PublisherProfileScreen.currentUser =
+        WriterProfileScreen.currentUser.isPublisher
+        ? PublisherProfile(
+            name: _nameController.text.trim(),
+            accountId: WriterProfileScreen.currentUser.accountId,
+          )
+        : null;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => const DiscoverScreen()),
       (route) => false,
@@ -197,31 +211,164 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   },
                                 ),
                                 const SizedBox(height: 18),
-                                const _FieldLabel('Register as'),
-                                const SizedBox(height: 7),
-                                DropdownButtonFormField<String>(
+                                FormField<String>(
                                   initialValue: _accountType,
-                                  isExpanded: true,
-                                  icon: const Icon(
-                                    Icons.keyboard_arrow_down,
-                                    color: _muted,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    hint: 'Choose who u are',
-                                    icon: Icons.work_outline,
-                                  ),
-                                  items: _accountTypes
-                                      .map(
-                                        (type) => DropdownMenuItem(
-                                          value: type,
-                                          child: Text(type),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (type) =>
-                                      setState(() => _accountType = type),
                                   validator: (type) =>
                                       type == null ? 'Choose who u are' : null,
+                                  builder: (field) => Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(
+                                              () => _roleOptionsVisible =
+                                                  !_roleOptionsVisible,
+                                            );
+                                          },
+                                          borderRadius: BorderRadius.circular(
+                                            18,
+                                          ),
+                                          child: Container(
+                                            constraints: const BoxConstraints(
+                                              minHeight: 56,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(
+                                                alpha: .24,
+                                              ),
+                                              border: Border.all(
+                                                color: _roleOptionsVisible
+                                                    ? _gold
+                                                    : _roleBorder,
+                                                width: 1.4,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    _accountType ??
+                                                        'Select your role',
+                                                    style: const TextStyle(
+                                                      color: _ink,
+                                                      fontFamily: 'Georgia',
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Icon(
+                                                  _roleOptionsVisible
+                                                      ? Icons
+                                                            .keyboard_arrow_up_rounded
+                                                      : Icons
+                                                            .keyboard_arrow_down_rounded,
+                                                  color: _gold,
+                                                  size: 24,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      if (field.errorText != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 12,
+                                            top: 6,
+                                          ),
+                                          child: Text(
+                                            field.errorText!,
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.error,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      if (_roleOptionsVisible) ...[
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFFCF7),
+                                            border: Border.all(
+                                              color: const Color(0xFFF0DDC1),
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              18,
+                                            ),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0x1472552D),
+                                                blurRadius: 18,
+                                                offset: Offset(0, 8),
+                                              ),
+                                            ],
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 7,
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              for (
+                                                var index = 0;
+                                                index < _accountTypes.length;
+                                                index++
+                                              ) ...[
+                                                if (index > 0)
+                                                  const Divider(
+                                                    height: 1,
+                                                    color: Color(0xFFF0DDC1),
+                                                  ),
+                                                InkWell(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _accountType =
+                                                          _accountTypes[index];
+                                                      _roleOptionsVisible =
+                                                          false;
+                                                    });
+                                                    field.didChange(
+                                                      _accountType,
+                                                    );
+                                                  },
+                                                  child: SizedBox(
+                                                    height: 52,
+                                                    child: Align(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: Text(
+                                                        _accountTypes[index],
+                                                        style: const TextStyle(
+                                                          color: _ink,
+                                                          fontFamily: 'Georgia',
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.w400,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(height: 18),
                                 const _FieldLabel('Password'),
@@ -233,15 +380,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   autofillHints: const [
                                     AutofillHints.newPassword,
                                   ],
-                                  onTap: () {
-                                    if (_passwordController.text.isEmpty) {
-                                      _passwordController
-                                        ..text = _passwordSuggestion
-                                        ..selection = TextSelection.collapsed(
-                                          offset: _passwordSuggestion.length,
-                                        );
-                                    }
-                                  },
                                   decoration: _inputDecoration(
                                     hint: _passwordSuggestion,
                                     icon: Icons.lock_outline,
@@ -262,18 +400,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                                 ? Icons.visibility_off_outlined
                                                 : Icons.visibility_outlined,
                                             size: 20,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed: () => setState(
-                                            () => _passwordSuggestion =
-                                                _makePasswordSuggestion(),
-                                          ),
-                                          color: _muted,
-                                          tooltip: 'Suggest another password',
-                                          icon: const Icon(
-                                            Icons.refresh,
-                                            size: 19,
                                           ),
                                         ),
                                       ],

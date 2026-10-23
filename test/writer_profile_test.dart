@@ -34,6 +34,8 @@ void main() {
     await tester.enterText(fields.at(6), 'North Star Press, Elm House');
     await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+    await tester.pumpAndSettle();
     expect(find.text('New Name'), findsOneWidget);
     expect(find.text('A short author biography.'), findsOneWidget);
     expect(find.byTooltip('https://facebook.example/new'), findsOneWidget);
@@ -57,6 +59,8 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
+    await tester.drag(find.byType(ListView).first, const Offset(0, 500));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Profile'));
@@ -85,6 +89,29 @@ void main() {
       findsOneWidget,
     );
     expect(find.byTooltip('https://george-orwell.example'), findsOneWidget);
+  });
+
+  testWidgets('current user can cancel or confirm logging out', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: WriterProfileScreen(isCurrentUser: true)),
+    );
+
+    await tester.tap(find.byTooltip('Log out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Are you sure you want to log out?'), findsOneWidget);
+    expect(find.text('No'), findsOneWidget);
+    expect(find.text('Yes'), findsOneWidget);
+
+    await tester.tap(find.text('No'));
+    await tester.pumpAndSettle();
+    expect(find.text('Author Profile'), findsOneWidget);
+    expect(find.byTooltip('Log out'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Log out'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome Back'), findsOneWidget);
   });
 
   testWidgets('book author name opens that writer profile', (tester) async {

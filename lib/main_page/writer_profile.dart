@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../logout_confirmation.dart';
+import '../Splash,login,register/login.dart';
+import '../chat/direct_chat.dart';
+import '../publisher/publisher_profile.dart';
 
 const _ink = Color(0xFF173B43);
 const _gold = Color(0xFFC89543);
@@ -12,27 +16,82 @@ const _line = Color(0xFFDDD5C7);
 class WriterProfile {
   const WriterProfile({
     required this.name,
+    this.accountId = '',
     this.goodreads = '',
     this.facebook = '',
     this.instagram = '',
     this.website = '',
     this.about = '',
+    this.profileImagePath,
+    this.designSpecialization = '',
+    this.artStyle = '',
+    this.servicesOffered = '',
+    this.yearsOfExperience = '',
+    this.designTools = '',
+    this.workAvailability = '',
+    this.acceptsCustomRequests = '',
+    this.pricingPackages = '',
+    this.averageDeliveryTime = '',
+    this.revisionPolicy = '',
     this.isWriter = false,
+    this.isPublisher = false,
+    this.isCoverArtist = false,
     this.books = const [],
     this.followerIds = const [],
     this.publishers = const [],
   });
 
   final String name;
+  final String accountId;
   final String goodreads;
   final String facebook;
   final String instagram;
   final String website;
   final String about;
+  final String? profileImagePath;
+  final String designSpecialization;
+  final String artStyle;
+  final String servicesOffered;
+  final String yearsOfExperience;
+  final String designTools;
+  final String workAvailability;
+  final String acceptsCustomRequests;
+  final String pricingPackages;
+  final String averageDeliveryTime;
+  final String revisionPolicy;
   final bool isWriter;
+  final bool isPublisher;
+  final bool isCoverArtist;
   final List<WriterBook> books;
   final List<String> followerIds;
   final List<String> publishers;
+
+  WriterProfile copyWith({List<WriterBook>? books}) => WriterProfile(
+    name: name,
+    accountId: accountId,
+    goodreads: goodreads,
+    facebook: facebook,
+    instagram: instagram,
+    website: website,
+    about: about,
+    profileImagePath: profileImagePath,
+    designSpecialization: designSpecialization,
+    artStyle: artStyle,
+    servicesOffered: servicesOffered,
+    yearsOfExperience: yearsOfExperience,
+    designTools: designTools,
+    workAvailability: workAvailability,
+    acceptsCustomRequests: acceptsCustomRequests,
+    pricingPackages: pricingPackages,
+    averageDeliveryTime: averageDeliveryTime,
+    revisionPolicy: revisionPolicy,
+    isWriter: isWriter,
+    isPublisher: isPublisher,
+    isCoverArtist: isCoverArtist,
+    books: books ?? this.books,
+    followerIds: followerIds,
+    publishers: publishers,
+  );
 
   int get publishedBookCount => books.length;
   int get reviewCount =>
@@ -126,6 +185,19 @@ class _WriterProfileScreenState extends State<WriterProfileScreen> {
     }
   }
 
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showLogoutConfirmationDialog(context);
+    if (shouldLogout != true || !mounted) return;
+
+    WriterProfileScreen.currentUser = const WriterProfile(name: 'Your profile');
+    WriterProfileScreen.currentAvatarPath = null;
+    PublisherProfileScreen.currentUser = null;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final editable = widget.isCurrentUser;
@@ -154,6 +226,8 @@ class _WriterProfileScreenState extends State<WriterProfileScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const Spacer(),
+                    if (editable) LogoutButton(onPressed: _confirmLogout),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -192,7 +266,7 @@ class _WriterProfileScreenState extends State<WriterProfileScreen> {
                         crossAxisCount: columns,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
-                        childAspectRatio: 2.35,
+                        childAspectRatio: 1.8,
                       ),
                       itemBuilder: (context, index) =>
                           _bookTile(_profile.books[index]),
@@ -352,17 +426,21 @@ class _WriterProfileScreenState extends State<WriterProfileScreen> {
                           ),
                       ],
                     ),
-                  OutlinedButton.icon(
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Messaging coming soon.')),
+                  if (!editable)
+                    OutlinedButton.icon(
+                      onPressed: () => openDirectChat(
+                        context,
+                        userId: _profile.accountId,
+                        userName: _profile.name,
+                        avatarPath: _avatarPath ?? _profile.profileImagePath,
+                      ),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                      label: const Text('Message'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _ink,
+                        minimumSize: const Size(180, 40),
+                      ),
                     ),
-                    icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                    label: const Text('Message'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _ink,
-                      minimumSize: const Size(180, 40),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -700,12 +778,29 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                           name: _name.text.trim().isEmpty
                               ? widget.profile.name
                               : _name.text.trim(),
+                          accountId: widget.profile.accountId,
                           goodreads: _goodreads.text.trim(),
                           facebook: _facebook.text.trim(),
                           instagram: _instagram.text.trim(),
                           website: _website.text.trim(),
                           about: _about.text.trim(),
+                          profileImagePath: _avatarPath,
+                          designSpecialization:
+                              widget.profile.designSpecialization,
+                          artStyle: widget.profile.artStyle,
+                          servicesOffered: widget.profile.servicesOffered,
+                          yearsOfExperience: widget.profile.yearsOfExperience,
+                          designTools: widget.profile.designTools,
+                          workAvailability: widget.profile.workAvailability,
+                          acceptsCustomRequests:
+                              widget.profile.acceptsCustomRequests,
+                          pricingPackages: widget.profile.pricingPackages,
+                          averageDeliveryTime:
+                              widget.profile.averageDeliveryTime,
+                          revisionPolicy: widget.profile.revisionPolicy,
                           isWriter: widget.profile.isWriter,
+                          isPublisher: widget.profile.isPublisher,
+                          isCoverArtist: widget.profile.isCoverArtist,
                           books: widget.profile.books,
                           followerIds: widget.profile.followerIds,
                           publishers: _publishers.text

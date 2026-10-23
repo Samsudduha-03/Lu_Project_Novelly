@@ -3,6 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../chat/chat_list.dart';
+import '../publisher/publisher_dashboard.dart';
+import 'book_detail.dart';
+import 'novelly_bottom_navigation.dart';
 import 'writer_profile.dart';
 
 const _ink = Color(0xFF173B43);
@@ -28,14 +32,9 @@ class _MyBookScreenState extends State<MyBookScreen> {
   final _goodreads = TextEditingController();
   final _isbn = TextEditingController();
   final _publication = TextEditingController();
-  final List<_MyBook> _books = [
-    _MyBook('1984'),
-    _MyBook('Animal Farm'),
-    _MyBook('Homage to Catalonia'),
-    _MyBook('Down and Out in Paris and London'),
-    _MyBook('Burmese Days'),
-    _MyBook('The Road to Wigan Pier'),
-  ];
+  final List<_MyBook> _books = WriterProfileScreen.currentUser.books
+      .map((book) => _MyBook(title: book.title))
+      .toList();
   String _query = '';
   String? _genre;
   String? _imagePath;
@@ -57,10 +56,51 @@ class _MyBookScreenState extends State<MyBookScreen> {
       .where((book) => book.title.toLowerCase().contains(_query.toLowerCase()))
       .toList();
 
+  void _openBook(_MyBook book) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BookDetailScreen(
+          book: BookDetail(
+            title: book.title,
+            author: WriterProfileScreen.currentUser.name,
+            rating: 0,
+            pageCount: book.pageCount,
+            genres: book.genre == null ? const [] : [book.genre!],
+            description: book.description,
+            coverImagePath: book.imagePath,
+            reviews: const [],
+            isbn: book.isbn,
+            publication: book.publication,
+            goodreadsLink: book.goodreadsLink,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _saveBook() {
     if (!_formKey.currentState!.validate()) return;
+    final book = _MyBook(
+      title: _title.text.trim(),
+      description: _description.text.trim(),
+      pageCount: int.tryParse(_pages.text.trim()),
+      genre: _genre,
+      isbn: _isbn.text.trim(),
+      publication: _publication.text.trim(),
+      goodreadsLink: _goodreads.text.trim(),
+      imagePath: _imagePath,
+    );
+    final profile = WriterProfileScreen.currentUser;
+    if (profile.isWriter) {
+      WriterProfileScreen.currentUser = profile.copyWith(
+        books: [
+          ...profile.books,
+          WriterBook(title: book.title),
+        ],
+      );
+    }
     setState(() {
-      _books.insert(0, _MyBook(_title.text.trim(), imagePath: _imagePath));
+      _books.insert(0, book);
       _adding = false;
       _search.clear();
       _query = '';
@@ -159,43 +199,40 @@ class _MyBookScreenState extends State<MyBookScreen> {
     ],
   );
 
-  Widget _bottomNavigation(bool compact) => Container(
-    height: compact ? 68 : 92,
-    decoration: BoxDecoration(
-      color: _deepInk,
-      borderRadius: BorderRadius.circular(compact ? 23 : 29),
-    ),
-    child: Row(
-      children: [
-        _MyBookNavItem(
-          icon: Icons.search_rounded,
-          label: 'Search',
-          compact: compact,
-          onTap: () => Navigator.of(context).maybePop(),
-        ),
-        _MyBookNavItem(
-          icon: Icons.menu_book_outlined,
-          label: 'My Book',
-          selected: true,
-          compact: compact,
-        ),
-        _MyBookNavItem(
-          icon: Icons.chat_bubble_outline,
-          label: 'Chat',
-          compact: compact,
-        ),
-        _MyBookNavItem(
-          icon: Icons.person_outline,
-          label: 'Profile',
-          compact: compact,
-          onTap: () => Navigator.of(context).push(
+  Widget _bottomNavigation(bool compact) => NovellyBottomNavigation(
+    libraryLabel: WriterProfileScreen.currentUser.isPublisher
+        ? 'My Publishing'
+        : 'My Book',
+    selectedDestination: NovellyNavigationDestination.library,
+    compact: compact,
+    onDestinationSelected: (destination) {
+      switch (destination) {
+        case NovellyNavigationDestination.discover:
+          Navigator.of(context).maybePop();
+          break;
+        case NovellyNavigationDestination.library:
+          if (WriterProfileScreen.currentUser.isPublisher) {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PublisherDashboardScreen(),
+              ),
+            );
+          }
+          break;
+        case NovellyNavigationDestination.chat:
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ChatListScreen()),
+          );
+          break;
+        case NovellyNavigationDestination.profile:
+          Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => const WriterProfileScreen(isCurrentUser: true),
             ),
-          ),
-        ),
-      ],
-    ),
+          );
+          break;
+      }
+    },
   );
 
   Widget _bookList(bool compact) => Column(
@@ -248,9 +285,21 @@ class _MyBookScreenState extends State<MyBookScreen> {
       ),
       const SizedBox(height: 12),
       Expanded(
-        child: _visibleBooks.isEmpty
+        child: _books.isEmpty
             ? const Center(
-                child: Text('No books found', style: TextStyle(color: _muted)),
+                child: Text(
+                  'No books yet. Add a book to get started.',
+                  style: TextStyle(color: _muted),
+                  textAlign: TextAlign.center,
+                ),
+              )
+            : _visibleBooks.isEmpty
+            ? const Center(
+                child: Text(
+                  'No books found',
+                  style: TextStyle(color: _muted),
+                  textAlign: TextAlign.center,
+                ),
               )
             : GridView.builder(
                 itemCount: _visibleBooks.length,
@@ -286,56 +335,67 @@ class _MyBookScreenState extends State<MyBookScreen> {
     ],
   );
 
-  Widget _bookCard(_MyBook book) => Container(
-    padding: const EdgeInsets.all(9),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFFCF7).withValues(alpha: .45),
+  Widget _bookCard(_MyBook book) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: () => _openBook(book),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFE9E2D7)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x09000000),
-          blurRadius: 7,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Column(
-      children: [
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2E9DC),
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: const Color(0xFFE9D9C2)),
-              image: book.imagePath == null
-                  ? null
-                  : DecorationImage(
-                      image: FileImage(File(book.imagePath!)),
-                      fit: BoxFit.cover,
-                    ),
+      child: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFCF7).withValues(alpha: .45),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE9E2D7)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x09000000),
+              blurRadius: 7,
+              offset: Offset(0, 2),
             ),
-            child: book.imagePath == null
-                ? const Icon(Icons.menu_book_outlined, color: _gold, size: 38)
-                : null,
-          ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          book.title,
-          maxLines: 2,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: _ink,
-            fontFamily: 'Georgia',
-            fontSize: 13,
-            height: 1.3,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Column(
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2E9DC),
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(color: const Color(0xFFE9D9C2)),
+                  image: book.imagePath == null
+                      ? null
+                      : DecorationImage(
+                          image: FileImage(File(book.imagePath!)),
+                          fit: BoxFit.cover,
+                        ),
+                ),
+                child: book.imagePath == null
+                    ? const Icon(
+                        Icons.menu_book_outlined,
+                        color: _gold,
+                        size: 38,
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              book.title,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _ink,
+                fontFamily: 'Georgia',
+                fontSize: 13,
+                height: 1.3,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     ),
   );
 
@@ -557,46 +617,23 @@ class _MyBookScreenState extends State<MyBookScreen> {
 }
 
 class _MyBook {
-  const _MyBook(this.title, {this.imagePath});
-
-  final String title;
-  final String? imagePath;
-}
-
-class _MyBookNavItem extends StatelessWidget {
-  const _MyBookNavItem({
-    required this.icon,
-    required this.label,
-    required this.compact,
-    this.selected = false,
-    this.onTap,
+  const _MyBook({
+    required this.title,
+    this.description = '',
+    this.pageCount,
+    this.genre,
+    this.isbn = '',
+    this.publication = '',
+    this.goodreadsLink = '',
+    this.imagePath,
   });
 
-  final IconData icon;
-  final String label;
-  final bool compact;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFFE5AE4D) : Colors.white;
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: compact ? 25 : 34),
-            SizedBox(height: compact ? 2 : 4),
-            Text(
-              label,
-              style: TextStyle(color: color, fontSize: compact ? 12 : 16),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  final String title;
+  final String description;
+  final int? pageCount;
+  final String? genre;
+  final String isbn;
+  final String publication;
+  final String goodreadsLink;
+  final String? imagePath;
 }

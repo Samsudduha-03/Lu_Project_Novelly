@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
+import '../chat/chat_list.dart';
+import '../publisher/publisher_dashboard.dart';
+import '../cover/cover_artist_profile.dart';
+import '../cover/cover_artist_directory.dart';
+import '../cover/cover_design.dart';
+import '../cover/my_designs.dart';
 import 'book_detail.dart';
+import 'discover_book.dart';
 import 'my_book.dart';
+import 'novelly_bottom_navigation.dart';
 import 'writer_profile.dart';
+import '../publisher/publisher._directory.dart';
+import '../publisher/publisher_profile.dart';
 
 const Color _ink = Color(0xFF173B43);
 const Color _deepInk = Color(0xFF12343B);
@@ -11,7 +21,22 @@ const Color _line = Color(0xFFDDD5C7);
 const Color _paper = Color(0xFFF4F0E7);
 
 class DiscoverScreen extends StatefulWidget {
-  const DiscoverScreen({super.key});
+  const DiscoverScreen({
+    super.key,
+    this.books = const [],
+    this.publishers = const [],
+    this.coverArtists = const [],
+    this.coverDesigns = const [],
+    this.coverDrafts = const [],
+    this.initialTab = 0,
+  });
+
+  final List<DiscoverBook> books;
+  final List<PublisherEntry> publishers;
+  final List<WriterProfile> coverArtists;
+  final List<CoverDesign> coverDesigns;
+  final List<CoverDesign> coverDrafts;
+  final int initialTab;
 
   @override
   State<DiscoverScreen> createState() => _DiscoverScreenState();
@@ -20,35 +45,21 @@ class DiscoverScreen extends StatefulWidget {
 class _DiscoverScreenState extends State<DiscoverScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
-  int _selectedTab = 0;
+  late int _selectedTab;
   bool _gridView = false;
 
-  static const List<_Book> _books = [
-    _Book(
-      title: 'The Quiet Meridian',
-      author: 'Eleanor Hart',
-      rating: '4.8',
-      genre: 'Literary Fiction',
-    ),
-    _Book(
-      title: 'Salt & Silence',
-      author: 'Eleanor Hart',
-      rating: '4.6',
-      genre: 'Short Stories',
-    ),
-    _Book(
-      title: 'Before the Clock Stops',
-      author: 'James Okafor',
-      rating: '4.4',
-      genre: 'Science Fiction',
-    ),
-    _Book(
-      title: 'Echoes in Binary',
-      author: 'James Okafor',
-      rating: '4.1',
-      genre: 'Science Fiction',
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = widget.initialTab;
+  }
+
+  List<int> get _visibleTabIds =>
+      WriterProfileScreen.currentUser.isWriter ||
+          WriterProfileScreen.currentUser.isPublisher ||
+          WriterProfileScreen.currentUser.isCoverArtist
+      ? [0, 1, 2]
+      : [0, 2];
 
   @override
   void dispose() {
@@ -56,10 +67,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     super.dispose();
   }
 
-  List<_Book> get _visibleBooks {
+  List<DiscoverBook> get _visibleBooks {
     final query = _query.trim().toLowerCase();
-    if (query.isEmpty) return _books;
-    return _books
+    if (query.isEmpty) return widget.books;
+    return widget.books
         .where(
           (book) =>
               book.title.toLowerCase().contains(query) ||
@@ -69,7 +80,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         .toList();
   }
 
-  void _openBook(_Book book) {
+  void _openBook(DiscoverBook book) {
     final rating = double.tryParse(book.rating) ?? 0;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -84,6 +95,71 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         ),
       ),
     );
+  }
+
+  void _openPublisher(PublisherEntry publisher) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PublisherProfileScreen(
+          profile: PublisherProfile.preview(
+            name: publisher.name,
+            publishedBookCount: publisher.bookCount,
+            accountId: publisher.accountId,
+            imagePath: publisher.imagePath,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigate(NovellyNavigationDestination destination) {
+    switch (destination) {
+      case NovellyNavigationDestination.discover:
+        break;
+      case NovellyNavigationDestination.library:
+        final account = WriterProfileScreen.currentUser;
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => account.isCoverArtist
+                ? MyDesignsScreen(
+                    covers: widget.coverDesigns,
+                    drafts: widget.coverDrafts,
+                  )
+                : account.isPublisher
+                ? const PublisherDashboardScreen()
+                : const MyBookScreen(),
+          ),
+        );
+        break;
+      case NovellyNavigationDestination.chat:
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const ChatListScreen()));
+        break;
+      case NovellyNavigationDestination.profile:
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) {
+              final account = WriterProfileScreen.currentUser;
+              if (account.isCoverArtist) {
+                return CoverArtistProfileScreen(
+                  isCurrentUser: true,
+                  covers: widget.coverDesigns,
+                  drafts: widget.coverDrafts,
+                );
+              }
+              if (account.isPublisher) {
+                return PublisherProfileScreen(
+                  isCurrentUser: true,
+                  profile: PublisherProfileScreen.currentUser,
+                );
+              }
+              return const WriterProfileScreen(isCurrentUser: true);
+            },
+          ),
+        );
+        break;
+    }
   }
 
   @override
@@ -124,8 +200,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     Expanded(
                       child: _selectedTab == 0
                           ? _buildBookResults(constraints.maxWidth)
-                          : _buildEmptySection(
-                              _selectedTab == 1 ? 'Publishers' : 'Covers',
+                          : _selectedTab == 1
+                          ? PublisherDirectoryView(
+                              publishers: widget.publishers,
+                              query: _query,
+                              onPublisherTap: _openPublisher,
+                            )
+                          : CoverArtistDirectoryView(
+                              coverArtists: widget.coverArtists,
+                              query: _query,
+                              onCoverArtistTap: _openCoverArtist,
                             ),
                     ),
                     SizedBox(height: mobile ? 7 : 10),
@@ -135,6 +219,28 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+
+  void _openCoverArtist(WriterProfile artist) {
+    final currentUser = WriterProfileScreen.currentUser;
+    final isCurrentUser =
+        currentUser.isCoverArtist &&
+        (artist.accountId.isNotEmpty
+            ? artist.accountId == currentUser.accountId
+            : artist.name == currentUser.name);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CoverArtistProfileScreen(
+          profile: artist,
+          isCurrentUser: isCurrentUser,
+          covers: isCurrentUser ? widget.coverDesigns : const [],
+          drafts: isCurrentUser ? widget.coverDrafts : const [],
+          books: widget.books,
+          publishers: widget.publishers,
+          coverArtists: widget.coverArtists,
         ),
       ),
     );
@@ -161,50 +267,56 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
           ),
           const Spacer(),
-          SizedBox(
-            width: controlSize,
-            height: controlSize,
-            child: IconButton(
-              tooltip: _gridView
-                  ? 'Switch to list view'
-                  : 'Switch to grid view',
-              onPressed: () => setState(() => _gridView = !_gridView),
-              style: IconButton.styleFrom(
-                foregroundColor: _deepInk,
-                side: const BorderSide(color: _line),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(21),
+          if (_selectedTab == 0)
+            SizedBox(
+              width: controlSize,
+              height: controlSize,
+              child: IconButton(
+                tooltip: _gridView
+                    ? 'Switch to list view'
+                    : 'Switch to grid view',
+                onPressed: () => setState(() => _gridView = !_gridView),
+                style: IconButton.styleFrom(
+                  foregroundColor: _deepInk,
+                  side: const BorderSide(color: _line),
+                  shape: const CircleBorder(),
+                ),
+                icon: Icon(
+                  _gridView ? Icons.view_list_rounded : Icons.tune_rounded,
+                  size: mobile ? 29 : 35,
                 ),
               ),
-              icon: Icon(
-                _gridView ? Icons.view_list_rounded : Icons.tune_rounded,
-                size: mobile ? 25 : 31,
-              ),
             ),
-          ),
         ],
       ),
     );
   }
 
   Widget _buildTabs(bool mobile) {
-    const labels = ['Books', 'Publishers', 'Covers'];
+    const allLabels = ['Books', 'Publishers', 'Covers'];
+    final tabIds = _visibleTabIds;
+    final selectedPosition = tabIds.indexOf(_selectedTab);
     return SizedBox(
       height: mobile ? 48 : 57,
       child: Column(
         children: [
           Expanded(
             child: Row(
-              children: List.generate(labels.length, (index) {
-                final selected = _selectedTab == index;
+              children: List.generate(tabIds.length, (position) {
+                final tabId = tabIds[position];
+                final selected = _selectedTab == tabId;
                 return Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _selectedTab = index),
+                    onTap: () => setState(() => _selectedTab = tabId),
                     child: Center(
                       child: Text(
-                        labels[index],
+                        allLabels[tabId],
                         style: TextStyle(
-                          color: selected ? _ink : _muted,
+                          color: selected
+                              ? tabId == 1
+                                    ? _gold
+                                    : _ink
+                              : _muted,
                           fontSize: mobile ? 19 : 23,
                           fontWeight: selected
                               ? FontWeight.w600
@@ -223,17 +335,18 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               children: [
                 const Positioned.fill(child: ColoredBox(color: _line)),
                 Align(
-                  alignment: [
-                    Alignment.centerLeft,
-                    Alignment.center,
-                    Alignment.centerRight,
-                  ][_selectedTab],
+                  alignment: switch (selectedPosition) {
+                    0 => Alignment.centerLeft,
+                    1 when tabIds.length == 2 => Alignment.centerRight,
+                    1 => Alignment.center,
+                    _ => Alignment.centerRight,
+                  },
                   child: FractionallySizedBox(
-                    widthFactor: 0.16,
+                    widthFactor: tabIds.length == 2 ? 0.22 : 0.16,
                     child: Container(
                       height: 4,
                       decoration: BoxDecoration(
-                        color: _ink,
+                        color: _selectedTab == 1 ? _gold : _ink,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -321,75 +434,32 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   Widget _buildEmptySection(String title) {
     return Center(
-      child: Text(
-        title == 'No books found' ? title : '$title coming soon',
-        style: const TextStyle(color: _muted, fontSize: 17),
-      ),
+      child: Text(title, style: const TextStyle(color: _muted, fontSize: 17)),
     );
   }
 
   Widget _buildBottomNavigation(bool mobile) {
-    return Container(
-      height: mobile ? 68 : 92,
-      decoration: BoxDecoration(
-        color: _deepInk,
-        borderRadius: BorderRadius.circular(mobile ? 23 : 29),
-      ),
-      child: Row(
-        children: [
-          _BottomNavigationItem(
-            icon: Icons.search_rounded,
-            label: 'Search',
-            selected: true,
-            compact: mobile,
-          ),
-          _BottomNavigationItem(
-            icon: Icons.menu_book_outlined,
-            label: 'My Book',
-            compact: mobile,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const MyBookScreen()),
-            ),
-          ),
-          _BottomNavigationItem(
-            icon: Icons.chat_bubble_outline,
-            label: 'Chat',
-            compact: mobile,
-          ),
-          _BottomNavigationItem(
-            icon: Icons.person_outline,
-            label: 'Profile',
-            compact: mobile,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const WriterProfileScreen(isCurrentUser: true),
-              ),
-            ),
-          ),
-        ],
-      ),
+    final account = WriterProfileScreen.currentUser;
+    return NovellyBottomNavigation(
+      libraryLabel: account.isCoverArtist
+          ? 'My Designs'
+          : account.isPublisher
+          ? 'My Publishing'
+          : 'My Book',
+      libraryIcon: account.isCoverArtist
+          ? Icons.palette_outlined
+          : Icons.menu_book_outlined,
+      selectedDestination: NovellyNavigationDestination.discover,
+      compact: mobile,
+      onDestinationSelected: _navigate,
     );
   }
-}
-
-class _Book {
-  const _Book({
-    required this.title,
-    required this.author,
-    required this.rating,
-    required this.genre,
-  });
-
-  final String title;
-  final String author;
-  final String rating;
-  final String genre;
 }
 
 class _ListBookCard extends StatelessWidget {
   const _ListBookCard({required this.book, required this.onTap});
 
-  final _Book book;
+  final DiscoverBook book;
   final VoidCallback onTap;
 
   @override
@@ -489,7 +559,7 @@ class _GridBookCard extends StatelessWidget {
     required this.compact,
   });
 
-  final _Book book;
+  final DiscoverBook book;
   final VoidCallback onTap;
   final bool compact;
 
@@ -607,44 +677,6 @@ class _RatingStars extends StatelessWidget {
         Icon(Icons.star, color: _gold, size: size),
         Icon(Icons.star_half, color: _gold, size: size),
       ],
-    );
-  }
-}
-
-class _BottomNavigationItem extends StatelessWidget {
-  const _BottomNavigationItem({
-    required this.icon,
-    required this.label,
-    this.selected = false,
-    this.compact = false,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final bool compact;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFFE5AE4D) : Colors.white;
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: compact ? 25 : 34),
-            SizedBox(height: compact ? 2 : 4),
-            Text(
-              label,
-              style: TextStyle(color: color, fontSize: compact ? 12 : 16),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
